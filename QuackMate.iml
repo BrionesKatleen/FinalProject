@@ -9,5 +9,6 @@
     <orderEntry type="jdk" jdkName="24" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="lib" level="project" />
+    <orderEntry type="library" name="sqlite-jdbc-3.51.0.0" level="project" />
   </component>
 </module>
