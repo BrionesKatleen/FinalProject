@@ -1,27 +1,35 @@
 package database;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
-        // Initialize database and tables
+        // Initialize database (drops old one automatically)
         DatabaseManager.initialize();
 
-        // Create a player and a duck
+        // Create player
         int playerId = DatabaseManager.addPlayer("Grace");
+        if (playerId == -1) {
+            System.out.println("Failed to create player. Exiting.");
+            return;
+        }
+
+        // Create duck
         int duckId = DatabaseManager.addDuck(playerId);
+        if (duckId == -1) {
+            System.out.println("Failed to create duck. Exiting.");
+            return;
+        }
 
         System.out.println("Player ID: " + playerId);
         System.out.println("Duck ID: " + duckId);
 
-        // Start the automatic stat update every minute
+        // Start auto stat updates
         DatabaseManager.startStatTimer(duckId);
 
         // Example: change duck state to playing
         DatabaseManager.setDuckState(duckId, "playing");
 
         // Keep program alive
-        while (true) {
-            // just to keep the main thread running
-        }
+        Thread.sleep(Long.MAX_VALUE);
     }
 }
