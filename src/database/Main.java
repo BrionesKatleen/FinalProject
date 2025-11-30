@@ -6,7 +6,7 @@ public class Main {
         // Initialize database (drops old one automatically)
         DatabaseManager.initialize();
 
-        // Create player/
+        // Create player
         int playerId = DatabaseManager.addPlayer("Grace");
         if (playerId == -1) {
             System.out.println("Failed to create player. Exiting.");
