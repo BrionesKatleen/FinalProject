@@ -278,7 +278,7 @@ public class DatabaseManager {
 
     //-----------------------------------------
     // DUCK CLASS
-    //
+    //----------------------------------
     public static class Duck {
         public int id;
         public double hunger, energy, cleanliness, happiness;

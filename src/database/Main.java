@@ -13,7 +13,7 @@ public class Main {
             return;
         }
 
-        // Create duck
+        // Create duck/s
         int duckId = DatabaseManager.addDuck(playerId);
         if (duckId == -1) {
             System.out.println("Failed to create duck. Exiting.");
