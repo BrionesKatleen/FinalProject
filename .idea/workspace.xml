@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="15da5be9-75c4-4bfc-ad35-72dbc5182cf7" name="Changes" comment="" />
+    <list default="true" id="15da5be9-75c4-4bfc-ad35-72dbc5182cf7" name="Changes" comment="MAMA" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -59,7 +59,8 @@
     "Application.MemoryCards.executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "git-widget-placeholder": "JoshuaMiniGame",
     "kotlin-language-version-configured": "true",
     "project.structure.last.edited": "Libraries",
     "project.structure.proportion": "0.0",
@@ -89,6 +90,19 @@
       <option name="presentableId" value="Default" />
       <updated>1765014731673</updated>
     </task>
+    <task id="LOCAL-00001" summary="MAMA">
+      <option name="closed" value="true" />
+      <created>1765651856164</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1765651856164</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="MAMA" />
+    <option name="LAST_COMMIT_MESSAGE" value="MAMA" />
   </component>
 </project>
