@@ -7,24 +7,25 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.effect.Glow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.media.AudioClip;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.text.FontWeight;
+import javafx.scene.text.*;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
-import javafx.scene.text.Font;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
 import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 
 public class Main extends Application {
@@ -44,6 +45,49 @@ public class Main extends Application {
             "corn night.png",
             "oats night.png"
     };
+    private final String CARD_BACK = "/OrigBackPart.png";
+    private final List<String> ALL_DUCKS = Arrays.asList(
+            "/BlueDuckCard.png", "/BrownDuckCard.png", "/GrayDuckCard.png",
+            "/GreenDuckCard.png", "/OrangeDuckCard.png", "/PinkDuckCard.png",
+            "/PlatinumDuckCard.png", "/PurpleDuckCard.png", "/RedDuckCard.png",
+            "/WhiteDuckCard.png", "/YellowDuckCard.png"
+    );
+
+    private int credits = 0;
+    private int roundCredits = 0;
+    private int mistakes = 0;
+    private int level = 0;
+
+    private Label creditsLabel, levelLabel, mistakesLabel;
+    private Stage window;
+    private final Random rng = new Random();
+    private final int SCENE_W = 400;
+    private final int SCENE_H = 500;
+
+    private Card firstSelected = null;
+
+    private final String MAIN_BTN_STYLE = "-fx-background-color: linear-gradient(to bottom, #ffffff, #e0e0e0); " +
+            "-fx-text-fill: #2c3e50; -fx-font-family: 'Arial'; -fx-font-size: 16px; -fx-font-weight: bold; " +
+            "-fx-background-radius: 15; -fx-border-radius: 15; -fx-border-color: #34495e; -fx-border-width: 2; " +
+            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2); -fx-cursor: hand;";
+
+    private final String DIFF_BTN_BASE = "-fx-font-family: 'Monospace'; -fx-font-size: 14px; -fx-font-weight: bold; " +
+            "-fx-background-radius: 15; -fx-border-radius: 15; -fx-border-width: 2; -fx-text-fill: white; " +
+            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 4, 0, 0, 1); -fx-cursor: hand;";
+
+    private final String BACK_BTN_STYLE = "-fx-background-color: linear-gradient(to bottom, #fff9c4, #fff59d); " + // light yellow gradient
+            "-fx-text-fill: #2c3e50; " +
+            "-fx-font-size: 18px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-background-radius: 50; " +   // very rounded (circular)
+            "-fx-border-radius: 50; " +
+            "-fx-border-color: #f0e68c; " +   // subtle border
+            "-fx-border-width: 1; " +
+            "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 3, 0, 0, 1); " +
+            "-fx-cursor: hand;";
+
+
+
     // Adjustable sizes per scene l
     @Override
     public void start(Stage stage) {
@@ -274,36 +318,6 @@ public class Main extends Application {
             getClass().getResource("dirty.png")
                     .toExternalForm()
     );
-
-    private void attachDirtOverlay(ImageView duck, StackPane root) {
-        // Remove old overlay if exists
-        if (dirtOverlay != null) {
-            root.getChildren().remove(dirtOverlay);
-        }
-
-        if (cleanliness <= 30) {
-            dirtOverlay = new ImageView(dirtImage);
-            dirtOverlay.setFitWidth(duck.getFitWidth());
-            dirtOverlay.setPreserveRatio(true);
-
-            // Position exactly on top of duck
-            dirtOverlay.layoutXProperty().bind(duck.layoutXProperty());
-            dirtOverlay.layoutYProperty().bind(duck.layoutYProperty());
-            dirtOverlay.translateXProperty().bind(duck.translateXProperty());
-            dirtOverlay.translateYProperty().bind(duck.translateYProperty());
-
-            StackPane.setAlignment(dirtOverlay, StackPane.getAlignment(duck));
-            StackPane.setMargin(dirtOverlay, StackPane.getMargin(duck));
-
-            root.getChildren().add(dirtOverlay);
-            dirtOverlay.toFront(); // IMPORTANT: in front of duck
-        }
-    }
-
-
-    private ImageView dirtOverlay;
-
-
     // --- DuckHouse method (unchanged, uses getDuckForScene) ---
     private void DuckHouse(Stage stage, String username) {
         BorderPane layout = sceneTemplate(stage, "house.png", username);
@@ -349,26 +363,75 @@ public class Main extends Application {
     private Label quantityLabel;
     private Button buyButton;
     private Label priceLabel; // class-level for price
+    private Image currentDuckImage; // tracks the current base duck image
 
     private void kitchen(Stage stage, String username) {
         BorderPane layout = sceneTemplate(stage, "kitchen.png", username);
         StackPane root = (StackPane) stage.getScene().getRoot();
 
         double DEFAULT_SIZE = 150;
-        double SELECTED_SIZE = 295;
 
-        // Use unified duck logic
-        Image characterToUse = getDuckForScene("/dockieKitchen.png");
+        // --- Duck Images ---
+        Image defaultDuck = getDuckForScene("/dockieKitchen.png");
+        ImageView duck = new ImageView(defaultDuck);
 
-        ImageView duck = new ImageView(characterToUse);
-        duck.setFitWidth((selectedCharacter != null) ? SELECTED_SIZE : DEFAULT_SIZE);
+        // --- Selected character settings ---
+        boolean isSelectedDuck = selectedCharacter != null;
+        currentDuckImage = isSelectedDuck ? selectedCharacter : defaultDuck;
+        duck.setImage(currentDuckImage);
+
+        // Define per-hat eating animations, widths, and margins
+        Image[] hatEatingAnimations = new Image[] {
+                new Image(getClass().getResource("/eating with cat hat (1).PNG").toExternalForm()),
+                new Image(getClass().getResource("/eating with frog hat (1).PNG").toExternalForm()),
+                new Image(getClass().getResource("/eating with stitch hat (1).PNG").toExternalForm())
+        };
+
+        double[] hatWidths = {295, 295, 295}; // Adjust per hat
+        Insets[] hatMargins = {
+                new Insets(0, -200, 115, 0), // Cat hat
+                new Insets(0, -200, 120, 0), // Frog hat
+                new Insets(0, -200, 110, 0)  // Stitch hat
+        };
+
+        // Set size and margin
+        if (isSelectedDuck) {
+            duck.setFitWidth(hatWidths[outfitIndex]);
+            StackPane.setMargin(duck, hatMargins[outfitIndex]);
+        } else {
+            duck.setFitWidth(DEFAULT_SIZE);
+            StackPane.setMargin(duck, new Insets(0, -200, 135, 0)); // original duck
+        }
+
         duck.setPreserveRatio(true);
         StackPane.setAlignment(duck, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(duck, new Insets(0, -200, 135, 0));
 
         if (!isNightMode && !root.getChildren().contains(duck)) root.getChildren().add(duck);
-        duck.setMouseTransparent(true);
+        duck.setMouseTransparent(false); // enable click for animation
 
+        // --- Eating Animation Handler ---
+        duck.setOnMouseClicked(e -> {
+            Image eatingAnim;
+            double animWidth;
+            double translateX = 0, translateY = 0;
+
+            if (isSelectedDuck) {
+                eatingAnim = hatEatingAnimations[outfitIndex];
+                animWidth = hatWidths[outfitIndex];
+            } else {
+                eatingAnim = new Image(getClass().getResource("/eating.png").toExternalForm());
+                animWidth = 305;
+                translateX = 1;
+                translateY = 60;
+            }
+
+            playEatingAnimation(duck, eatingAnim, animWidth, translateX, translateY);
+        });
+        // remove any duck.toFront() calls
+        duck.setMouseTransparent(false); // click still works
+
+
+        // --- Food pane setup ---
         Pane foodPane = new Pane();
         foodPane.setPrefSize(200, 300);
         layout.setCenter(foodPane);
@@ -387,43 +450,108 @@ public class Main extends Application {
 
         foodPane.getChildren().addAll(btnLeft, btnRight);
 
-        createFood(foodPane, duck);
+        if (!root.getChildren().contains(duck)) {
+            root.getChildren().add(duck); // add duck first
+        }
+        createFood(foodPane, duck); // then add food (food will appear on top)
+
 
         btnLeft.setOnAction(e -> {
             foodIndex = (foodIndex - 1 + foods.length) % foods.length;
             updateFood(foodPane, duck);
+
+            // Update the current duck image after food changes
+            duck.setImage(currentDuckImage);
         });
 
         btnRight.setOnAction(e -> {
             foodIndex = (foodIndex + 1) % foods.length;
             updateFood(foodPane, duck);
+
+            // Update the current duck image after food changes
+            duck.setImage(currentDuckImage);
         });
 
         stage.setScene(new Scene(layout, 400, 500));
         stage.show();
     }
 
-
-
-    private void showMouthOpen(ImageView duck) {
+    // --- Eating Animation Handler ---
+    private void playEatingAnimation(ImageView duck, Image eatingImage, double width, double translateX, double translateY) {
         double originalWidth = duck.getFitWidth();
         double originalTranslateX = duck.getTranslateX();
         double originalTranslateY = duck.getTranslateY();
 
-        duck.setImage(new Image(getClass().getResource("/eating.png").toExternalForm()));
-        duck.setFitWidth(305);
-        duck.setTranslateX(originalTranslateX + 1);
-        duck.setTranslateY(originalTranslateY + 60);
+        duck.setImage(eatingImage);
+        duck.setFitWidth(width);
+        duck.setTranslateX(originalTranslateX + translateX);
+        duck.setTranslateY(originalTranslateY + translateY);
 
-        PauseTransition pt = new PauseTransition(Duration.millis(200));
+        PauseTransition pt = new PauseTransition(Duration.millis(500));
         pt.setOnFinished(e -> {
-            duck.setImage(new Image(getClass().getResource("/dockieKitchen.png").toExternalForm()));
+            duck.setImage(currentDuckImage); // revert to correct duck
             duck.setFitWidth(originalWidth);
             duck.setTranslateX(originalTranslateX);
             duck.setTranslateY(originalTranslateY);
         });
         pt.play();
     }
+
+    // --- Character-aware mouth open animation ---
+    private void showMouthOpen(ImageView duck) {
+        double originalWidth = duck.getFitWidth();
+        double originalTranslateX = duck.getTranslateX();
+        double originalTranslateY = duck.getTranslateY();
+
+        Image mouthOpenImage;
+        double width = originalWidth;
+        double translateX = 0;
+        double translateY = 0;
+
+        if (selectedCharacter != null) {
+            // Use selected character's eating/open-mouth variant
+            String[] mouthOpenVariants = {
+                    "/eating with cat hat (1).PNG",
+                    "/eating with frog hat (1).PNG",
+                    "/eating with stitch hat (1).PNG"
+            };
+
+            // Width per outfit
+            double[] widths = {285, 290, 290};
+            width = widths[outfitIndex];
+
+            // X offset per outfit (negative = left, positive = right)
+            double[] translateXs = {0, -5, -10}; // adjust per outfit
+            translateX = translateXs[outfitIndex];
+
+            // Y offset per outfit (negative = up, positive = down)
+            double[] translateYs = {0, 5, 0}; // adjust per outfit
+            translateY = translateYs[outfitIndex];
+
+            mouthOpenImage = new Image(getClass().getResource(mouthOpenVariants[outfitIndex]).toExternalForm());
+        } else {
+            // Default duck eating image
+            mouthOpenImage = new Image(getClass().getResource("/eating.png").toExternalForm());
+            width = 305;
+            translateX = 1;
+            translateY = 60;
+        }
+
+        duck.setImage(mouthOpenImage);
+        duck.setFitWidth(width);
+        duck.setTranslateX(originalTranslateX + translateX);
+        duck.setTranslateY(originalTranslateY + translateY);
+
+        PauseTransition pt = new PauseTransition(Duration.millis(200));
+        pt.setOnFinished(e -> {
+            duck.setImage(currentDuckImage); // revert to correct duck
+            duck.setFitWidth(originalWidth);
+            duck.setTranslateX(originalTranslateX);
+            duck.setTranslateY(originalTranslateY);
+        });
+        pt.play();
+    }
+
 
     private void createFood(Pane foodPane, ImageView duck) {
         // Remove old UI elements before adding new ones
@@ -439,8 +567,8 @@ public class Main extends Application {
         foodDisplay.setFitWidth(100);
         foodDisplay.setPreserveRatio(true);
         foodDisplay.setLayoutX(53);
-        foodDisplay.setLayoutY(125);
-
+        foodDisplay.setLayoutY(110);
+        foodDisplay.toFront();
         // Quantity label
         quantityLabel = new Label("x" + foodQuantities[foodIndex]);
         quantityLabel.setStyle("-fx-font-family: Comic Sans MS; -fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;");
@@ -566,7 +694,7 @@ public class Main extends Application {
             dockieView.setFitWidth((selectedCharacter != null) ? SELECTED_SIZE : DEFAULT_SIZE);
             dockieView.setPreserveRatio(true);
             StackPane.setAlignment(dockieView, Pos.CENTER);
-            dockieView.setTranslateY(20);
+            dockieView.setTranslateY(-20);
             root.getChildren().add(dockieView);
         }
 
@@ -715,13 +843,35 @@ public class Main extends Application {
 
 
     private boolean isNightMode = false; // global flag
+
+    private Image getSleepingDuck() {
+        if (selectedCharacter == null) {
+            return new Image(getClass().getResource("/DuckSleeping.png").toExternalForm());
+        }
+
+        switch (outfitIndex) {
+            case 0:
+                return new Image(getClass().getResource("/sleeping with cat hat.png").toExternalForm());
+            case 1:
+                return new Image(getClass().getResource("/sleeping with frog hat.png").toExternalForm());
+            case 2:
+                return new Image(getClass().getResource("/sleeping with stitch hat.png").toExternalForm());
+            default:
+                return new Image(getClass().getResource("/DuckSleeping.png").toExternalForm());
+        }
+    }
+
+
     private void bedRoom(Stage stage, String username) {
         BorderPane layout = sceneTemplate(stage, "room.png", username);
         StackPane root = (StackPane) stage.getScene().getRoot();
 
         // --- Duck Images ---
-        Image awakeDuck = (selectedCharacter != null) ? selectedCharacter : new Image(getClass().getResource("/dockieBed.png").toExternalForm());
-        Image sleepingDuck = new Image(getClass().getResource("/DuckSleeping.png").toExternalForm());
+        Image awakeDuck = (selectedCharacter != null)
+                ? selectedCharacter
+                : new Image(getClass().getResource("/dockieBed.png").toExternalForm());
+
+        Image sleepingDuck = getSleepingDuck(); // 🔹 MERGED
 
         // --- Lamp Images ---
         Image lampOff = new Image(getClass().getResource("/lambing.png").toExternalForm());
@@ -731,15 +881,30 @@ public class Main extends Application {
         Image bgDay = new Image(getClass().getResource("/room.png").toExternalForm());
         Image bgNight = new Image(getClass().getResource("/nightver.png").toExternalForm());
 
+        // --- Duck Sizes ---
+        double DEFAULT_AWAKE = 150;
+        double DEFAULT_SLEEPING = 220;
+        double SELECTED_AWAKE = 290;
+        double SELECTED_SLEEPING = 320;
+
         // --- Duck ImageView ---
-        double DEFAULT_SIZE = 150;
-        double SELECTED_SIZE = 290;
         ImageView duckView = new ImageView(isNightMode ? sleepingDuck : awakeDuck);
-        double duckWidth = isNightMode ? 210 : ((selectedCharacter != null) ? SELECTED_SIZE : DEFAULT_SIZE);
+
+        // Determine if this is a custom sleeping duck (not default)
+        boolean isCustomSleepingDuck = sleepingDuck.getUrl() != null && !sleepingDuck.getUrl().endsWith("DuckSleeping.png");
+
+        double duckWidth = isNightMode
+                ? (isCustomSleepingDuck ? SELECTED_SLEEPING : DEFAULT_SLEEPING)
+                : ((selectedCharacter != null) ? SELECTED_AWAKE : DEFAULT_AWAKE);
         duckView.setFitWidth(duckWidth);
         duckView.setPreserveRatio(true);
+
+        Insets duckMargin = isNightMode
+                ? (isCustomSleepingDuck ? new Insets(0, 80, 178, 0) : new Insets(0, 80, 160, 0))
+                : new Insets(0, 0, 180, 0); // awake duck margin stays default
         StackPane.setAlignment(duckView, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(duckView, isNightMode ? new Insets(0, 0, 160, 0) : new Insets(0, 0, 180, 0));
+        StackPane.setMargin(duckView, duckMargin);
+
         if (!root.getChildren().contains(duckView)) {
             root.getChildren().add(duckView);
         }
@@ -752,31 +917,41 @@ public class Main extends Application {
         ToggleButton lampButton = new ToggleButton();
         lampButton.setGraphic(lampView);
         lampButton.getStyleClass().add("lamp-button");
-        lampButton.setSelected(!isNightMode); // lamp ON if day
+        lampButton.setSelected(!isNightMode);
 
         lampButton.setOnAction(e -> {
             if (lampButton.isSelected()) {
-                // Lamp ON → day mode
+                // DAY MODE
                 isNightMode = false;
                 lampView.setImage(lampOn);
                 ((ImageView) root.getChildren().get(0)).setImage(bgDay);
                 duckView.setImage(awakeDuck);
             } else {
-                // Lamp OFF → night mode
+                // NIGHT MODE
                 isNightMode = true;
                 lampView.setImage(lampOff);
                 ((ImageView) root.getChildren().get(0)).setImage(bgNight);
-                duckView.setImage(sleepingDuck);
+                duckView.setImage(getSleepingDuck());
             }
 
-            // Adjust duck size & margin according to mode
-            double updatedWidth = isNightMode ? 210 : ((selectedCharacter != null) ? SELECTED_SIZE : DEFAULT_SIZE);
+            // Recalculate width and margin for sleeping duck
+            Image currentSleepingDuck = getSleepingDuck();
+            boolean isCustom = currentSleepingDuck.getUrl() != null && !currentSleepingDuck.getUrl().endsWith("DuckSleeping.png");
+
+            double updatedWidth = isNightMode
+                    ? (isCustom ? SELECTED_SLEEPING : DEFAULT_SLEEPING)
+                    : ((selectedCharacter != null) ? SELECTED_AWAKE : DEFAULT_AWAKE);
             duckView.setFitWidth(updatedWidth);
-            StackPane.setMargin(duckView, isNightMode ? new Insets(0, 0, 160, 0) : new Insets(0, 0, 180, 0));
+
+            Insets updatedMargin = isNightMode
+                    ? (isCustom ? new Insets(0, 0, 178, 0) : new Insets(0, 0, 160, 0))
+                    : new Insets(0, 0, 180, 0);
+            StackPane.setMargin(duckView, updatedMargin);
         });
 
         StackPane.setAlignment(lampButton, Pos.TOP_RIGHT);
         StackPane.setMargin(lampButton, new Insets(60, 30, 0, 0));
+
         if (!root.getChildren().contains(lampButton)) {
             root.getChildren().add(lampButton);
         }
@@ -784,6 +959,13 @@ public class Main extends Application {
 
     private int outfitIndex = 0;
     private int playerLevel = 1; // Class-level player level, can update from stats
+
+    private Image desktopFrontDuck;
+    private Image desktopRightStayDuck;
+    private Image desktopRightStompDuck;
+    private Image desktopLeftStayDuck;
+    private Image desktopLeftStompDuck;
+     // track selected outfit
 
     private void closet(Stage stage, String username) {
         BorderPane layout = sceneTemplate(stage, "closet.png", username);
@@ -795,16 +977,16 @@ public class Main extends Application {
                 new Image(getClass().getResource("F with frog hat.png").toExternalForm()),  // Level 20
                 new Image(getClass().getResource("F with hat stitch.png").toExternalForm()) // Level 30
         };
-        int[] levelRequired = {10, 20, 30};
+        int[] levelRequired = {1, 1, 1};
 
-        // Ownership is now automatic based on playerLevel
+        // Ownership based on playerLevel
         boolean[] owned = new boolean[characters.length];
         for (int i = 0; i < characters.length; i++) {
             owned[i] = playerLevel >= levelRequired[i];
         }
 
         // Main preview
-        ImageView charac = new ImageView(characters[0]);
+        ImageView charac = new ImageView(characters[outfitIndex]);
         charac.setFitWidth(250);
         charac.setPreserveRatio(true);
         StackPane.setAlignment(charac, Pos.BOTTOM_CENTER);
@@ -868,12 +1050,49 @@ public class Main extends Application {
         useBtn.setOnAction(e -> {
             if (owned[outfitIndex]) {
                 selectedCharacter = characters[outfitIndex];
+
+                // --- Update desktop images ---
+                switch (outfitIndex) {
+                    case 0: // Hat 1
+                        desktopFrontDuck = new Image(getClass().getResource("/FrontSideCatDuck.PNG").toExternalForm());
+                        desktopRightStayDuck = new Image(getClass().getResource("/RightSideStayCatDuck.PNG").toExternalForm());
+                        desktopRightStompDuck = new Image(getClass().getResource("/RightSideStompCatDuck.PNG").toExternalForm());
+                        desktopLeftStayDuck = new Image(getClass().getResource("/LeftSideStayCatDuck.PNG").toExternalForm());
+                        desktopLeftStompDuck = new Image(getClass().getResource("/LeftSideStompCatDuck.PNG").toExternalForm());
+                        break;
+                    case 1: // Hat 2
+                        desktopFrontDuck = new Image(getClass().getResource("/FrontSideFrogDuck.PNG").toExternalForm());
+                        desktopRightStayDuck = new Image(getClass().getResource("/RightSideStayFrogDuck.PNG").toExternalForm());
+                        desktopRightStompDuck = new Image(getClass().getResource("/RightSideStompFrogDuck.PNG").toExternalForm());
+                        desktopLeftStayDuck = new Image(getClass().getResource("/LeftSideStayFrogDuck.PNG").toExternalForm());
+                        desktopLeftStompDuck = new Image(getClass().getResource("/LeftSideStompFrogDuck.PNG").toExternalForm());
+                        break;
+                    case 2: // Hat 3
+                        desktopFrontDuck = new Image(getClass().getResource("/FrontSideStitchesDuck.png").toExternalForm());
+                        desktopRightStayDuck = new Image(getClass().getResource("/RightSideStayStitchesDuck.PNG").toExternalForm());
+                        desktopRightStompDuck = new Image(getClass().getResource("/RightSideStompStitchesDuck.PNG").toExternalForm());
+                        desktopLeftStayDuck = new Image(getClass().getResource("/LeftSideStayStitchesDuck.PNG").toExternalForm());
+                        desktopLeftStompDuck = new Image(getClass().getResource("/LeftSideStompStitchesDuck.PNG").toExternalForm());
+                        break;
+                }
+
+                // Refresh desktop
+                DeskTop(stage, username);
             }
         });
 
         removeBtn.setOnAction(e -> {
             if (owned[outfitIndex]) {
                 selectedCharacter = null;
+
+                // Reset to original ducks
+                desktopFrontDuck = null;
+                desktopRightStayDuck = null;
+                desktopRightStompDuck = null;
+                desktopLeftStayDuck = null;
+                desktopLeftStompDuck = null;
+
+                DeskTop(stage, username);
             }
         });
 
@@ -938,11 +1157,9 @@ public class Main extends Application {
             // Close the current frame
             stage.close();
 
-            // Open the floating duck desktop
-            DeskTop(new Stage());
+            // Open the floating duck desktop with username
+            DeskTop(new Stage(), username);
         });
-
-
 
         HBox topControls = new HBox(10, settingsBtn, switchBtn);
         topControls.setAlignment(Pos.CENTER_LEFT);
@@ -987,6 +1204,7 @@ public class Main extends Application {
 
         return layout;
     }
+
 
     public void statsFrame(Stage stage, String username) {
         StackPane root = new StackPane();
@@ -1068,7 +1286,7 @@ public class Main extends Application {
         ImageView backGround = new ImageView(bg);
         backGround.setPreserveRatio(false);
 
-        Image playIcon = new Image(getClass().getResource("/game2.png").toExternalForm());
+        Image playIcon = new Image(getClass().getResource("MemoryCardThumbnail.png").toExternalForm());
         ImageView playView = new ImageView(playIcon);
         playView.setFitWidth(200);
         playView.setFitHeight(200);
@@ -1088,15 +1306,7 @@ public class Main extends Application {
         playView2.setFitHeight(200);
         playView2.setPreserveRatio(true);
 
-        Button picBtn2 = new Button();
-        picBtn2.setGraphic(playView2);
-        picBtn2.getStyleClass().add("duck-button");
-        picBtn2.setStyle("-fx-background-radius: 0; -fx-padding: 0;");
-        picBtn2.setOnAction(e -> flappyDuck(stage, username));
-        picBtn2.setOnMousePressed(e -> { picBtn2.setScaleX(0.9); picBtn2.setScaleY(0.9); });
-        picBtn2.setOnMouseReleased(e -> { picBtn2.setScaleX(1.0); picBtn2.setScaleY(1.0); });
-
-        VBox buttonBox = new VBox(20, picBtn, picBtn2);
+        VBox buttonBox = new VBox(20, picBtn);
         buttonBox.setAlignment(Pos.CENTER);
 
         Button btn1 = new Button("⬅");
@@ -1122,53 +1332,497 @@ public class Main extends Application {
         stage.show();
     }
 
-    public void flappyDuck (Stage stage, String username){
-        StackPane root = new StackPane();
-        root.setStyle("-fx-background-color: #fff9d6;");
+    public void cardFlip(Stage stage, String username) {
+        window = stage;
+        window.setResizable(false);
 
-        Scene scene = new Scene(root, 400, 500);
-        scene.getStylesheets().add(getClass().getResource("/DuckStyle.css").toExternalForm());
+        Image bgImage = new Image(Objects.requireNonNull(getClass().getResource("/MemoryCardsMiniMainBG.png")).toExternalForm());
+        BackgroundImage bgImg = new BackgroundImage(bgImage, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
+                BackgroundPosition.CENTER, new BackgroundSize(SCENE_W, SCENE_H, false, false, false, false));
+        BackgroundFill overlay = new BackgroundFill(Color.rgb(0, 0, 0, 0.1), CornerRadii.EMPTY, Insets.EMPTY);
+        Background background = new Background(Collections.singletonList(overlay), Collections.singletonList(bgImg));
 
-        Button backBtn = new Button("❮");
-        backBtn.getStyleClass().add("back-button");
-        backBtn.setOnAction(e -> GamesFrame(stage, username));
+        window.setTitle("Memory Cards");
+        Scene mainScene = createMainMenu(background);
+        window.setScene(mainScene);
+        window.show();
 
-        StackPane.setAlignment(backBtn, Pos.TOP_LEFT);
-        StackPane.setMargin(backBtn, new Insets(10, 0, 0, 10));
-
-        root.getChildren().add(backBtn);
-
-        stage.setScene(scene);
-        stage.show();
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(500), mainScene.getRoot());
+        fadeIn.setFromValue(0.0);
+        fadeIn.setToValue(1.0);
+        fadeIn.play();
     }
 
-    public void cardFlip (Stage stage, String username){
-        StackPane root = new StackPane();
-        root.setStyle("-fx-background-color: #fff9d6;");
+// -------------------------------
+// All helper methods
+// -------------------------------
 
-        Scene scene = new Scene(root, 400, 500);
-        scene.getStylesheets().add(getClass().getResource("/DuckStyle.css").toExternalForm());
+    private Scene createMainMenu(Background background) {
+        VBox root = new VBox(20);
+        root.setAlignment(Pos.TOP_CENTER);
+        root.setBackground(background);
+        root.setPadding(new Insets(120, 20, 20, 20));
 
-        Button backBtn = new Button("❮");
-        backBtn.getStyleClass().add("back-button");
-        backBtn.setOnAction(e -> GamesFrame(stage, username));
+        Text title = new Text("Memory Cards");
+        title.setFont(Font.font("Monospace", FontWeight.BOLD, 32));
+        title.setFill(Color.web("#ecf0f1"));
+        title.setEffect(new DropShadow(5, Color.BLACK));
 
-        StackPane.setAlignment(backBtn, Pos.TOP_LEFT);
-        StackPane.setMargin(backBtn, new Insets(10, 0, 0, 10));
+        level = credits / 100;
+        levelLabel = new Label("Level: " + level);
+        levelLabel.setFont(Font.font("Comic Sans MS", FontWeight.BOLD, 16));
+        levelLabel.setTextFill(Color.web("#ecf0f1"));
+        levelLabel.setEffect(new DropShadow(3, Color.BLACK));
 
-        root.getChildren().add(backBtn);
+        creditsLabel = new Label("Credits: " + credits);
+        creditsLabel.setFont(Font.font("Comic Sans MS", FontWeight.BOLD, 16));
+        creditsLabel.setTextFill(Color.web("#ecf0f1"));
+        creditsLabel.setEffect(new DropShadow(3, Color.BLACK));
 
-        stage.setScene(scene);
-        stage.show();
+        HBox infoBox = new HBox(20, levelLabel, creditsLabel);
+        infoBox.setAlignment(Pos.CENTER);
+
+        Button startBtn = new Button("Start Game");
+        startBtn.setPrefSize(220, 50);
+        startBtn.setFont(Font.font("Monospace", FontWeight.BOLD, 20));
+        startBtn.setStyle(MAIN_BTN_STYLE);
+        startBtn.setTooltip(new Tooltip("Begin a new game!"));
+        addButtonEffects(startBtn);
+        startBtn.setOnAction(e -> {
+            mistakes = 0;
+            roundCredits = 0;
+            fadeToScene(createDifficultyPage(background));
+        });
+
+        root.getChildren().addAll(title, infoBox, startBtn);
+
+        return new Scene(root, SCENE_W, SCENE_H);
     }
+
+    private Scene createDifficultyPage(Background background) {
+        BorderPane root = new BorderPane();
+        root.setBackground(background);
+
+        StackPane topPane = new StackPane();
+        topPane.setPadding(new Insets(10));
+        Button backBtn = createBackButton();
+        backBtn.setOnAction(e -> fadeToScene(createMainMenu(background)));
+        StackPane.setAlignment(backBtn, Pos.TOP_LEFT);
+        StackPane.setMargin(backBtn, new Insets(5, 0, 0, 10));
+        topPane.getChildren().add(backBtn);
+        root.setTop(topPane);
+
+        VBox box = new VBox(15);
+        box.setAlignment(Pos.CENTER);
+
+        Button easy = new Button("Easy");
+        easy.setPrefSize(150, 80);
+        easy.setFont(Font.font("Comic Sans MS", FontWeight.EXTRA_BOLD, 20));
+        easy.setStyle(DIFF_BTN_BASE + "-fx-background-color: linear-gradient(to bottom, #38b466, #4fcf7f);-fx-border-color: #27ae60;-fx-text-fill: white;");
+        addButtonEffects(easy);
+        easy.setOnAction(e -> fadeToScene(createInstructionScene(background, Difficulty.EASY)));
+
+        Button medium = new Button("Medium");
+        medium.setPrefSize(150, 80);
+        medium.setFont(Font.font("Comic Sans MS", FontWeight.EXTRA_BOLD, 20));
+        medium.setStyle(DIFF_BTN_BASE + "-fx-background-color: linear-gradient(to bottom, #e0a14a, #f2c25f);-fx-border-color: #d68910;-fx-text-fill: white;");
+        addButtonEffects(medium);
+        medium.setOnAction(e -> fadeToScene(createInstructionScene(background, Difficulty.MEDIUM)));
+
+        Button hard = new Button("Hard");
+        hard.setPrefSize(150, 80);
+        hard.setFont(Font.font("Comic Sans MS", FontWeight.EXTRA_BOLD, 20));
+        hard.setStyle(DIFF_BTN_BASE + "-fx-background-color: linear-gradient(to bottom, #e06363, #f57c7c);-fx-border-color: #c0392b;-fx-text-fill: white;");
+        addButtonEffects(hard);
+        hard.setOnAction(e -> fadeToScene(createInstructionScene(background, Difficulty.HARD)));
+
+        box.getChildren().addAll(easy, medium, hard);
+        root.setCenter(box);
+
+        Label footer = new Label("Credits: " + credits + " Level: " + (credits / 100));
+        footer.setFont(Font.font("Comic Sans MS", FontWeight.BOLD, 14));
+        footer.setTextFill(Color.web("#ecf0f1"));
+        footer.setEffect(new DropShadow(2, Color.BLACK));
+        BorderPane.setAlignment(footer, Pos.BOTTOM_CENTER);
+        BorderPane.setMargin(footer, new Insets(0, 0, 10, 0));
+        root.setBottom(footer);
+
+        return new Scene(root, SCENE_W, SCENE_H);
+    }
+
+    private Scene createInstructionScene(Background background, Difficulty difficulty) {
+        BorderPane root = new BorderPane();
+        root.setBackground(background);
+
+        Button back = createBackButton();
+        back.setOnAction(e -> fadeToScene(createDifficultyPage(background)));
+
+        StackPane topPane = new StackPane();
+        topPane.setPadding(new Insets(10));
+        StackPane.setAlignment(back, Pos.TOP_LEFT);
+        StackPane.setMargin(back, new Insets(5, 0, 0, 10));
+        topPane.getChildren().add(back);
+        root.setTop(topPane);
+
+        VBox center = new VBox(15);
+        center.setAlignment(Pos.CENTER);
+
+        Text title = new Text("How to Play");
+        title.setFont(Font.font("Monospace", FontWeight.BOLD, 26));
+        title.setFill(Color.web("#ecf0f1"));
+        title.setEffect(new DropShadow(4, Color.BLACK));
+
+        HBox sampleBox = new HBox(15);
+        sampleBox.setAlignment(Pos.CENTER);
+        String example = ALL_DUCKS.get(0);
+        for (int i = 0; i < 2; i++) {
+            Image img = new Image(Objects.requireNonNull(getClass().getResource(example)).toExternalForm(), 80, 100, true, true);
+            sampleBox.getChildren().addAll(new ImageView(img), new ImageView(img));
+        }
+
+        Text t1 = new Text("Flip cards to find matching pairs.\n");
+        Text t2 = new Text("Each match gives credits depending on difficulty.\n");
+        Text t3 = new Text("3 mistakes will end the game.\n");
+        Text t4 = new Text("Rare Platinum Duck gives ");
+        Text t5 = new Text("+1000 credits!");
+
+        t1.setFill(Color.web("#ecf0f1"));
+        t2.setFill(Color.web("#ecf0f1"));
+        t3.setFill(Color.web("#ecf0f1"));
+        t4.setFill(Color.web("#ecf0f1"));
+        t5.setFill(Color.GOLD);
+
+        for (Text t : Arrays.asList(t1, t2, t3, t4, t5)) {
+            t.setFont(Font.font("Comic Sans MS", FontWeight.NORMAL, 14));
+            t.setEffect(new DropShadow(3, Color.BLACK));
+        }
+
+        TextFlow explanationFlow = new TextFlow(t1, t2, t3, t4, t5);
+        explanationFlow.setTextAlignment(TextAlignment.CENTER);
+
+        center.getChildren().addAll(title, sampleBox, explanationFlow);
+        root.setCenter(center);
+
+        Label countdown = new Label("Starting in 5...");
+        countdown.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        countdown.setTextFill(Color.web("#ecf0f1"));
+        countdown.setEffect(new DropShadow(2, Color.BLACK));
+        BorderPane.setAlignment(countdown, Pos.BOTTOM_CENTER);
+        BorderPane.setMargin(countdown, new Insets(0, 0, 10, 0));
+        root.setBottom(countdown);
+
+        Scene instrScene = new Scene(root, SCENE_W, SCENE_H);
+        final int[] secsLeft = {5};
+        Timeline t = new Timeline(new KeyFrame(Duration.seconds(1), ev -> {
+            secsLeft[0]--;
+            countdown.setText("Starting in " + secsLeft[0] + "...");
+            if (secsLeft[0] <= 0) startGame(background, difficulty);
+        }));
+        t.setCycleCount(5);
+        t.play();
+
+        return instrScene;
+    }
+
+    private void startGame(Background background, Difficulty difficulty) {
+        int pairs = switch (difficulty) {
+            case EASY -> 4;
+            case MEDIUM -> 8;
+            case HARD -> 10;
+        };
+
+        List<String> deck = generateDeck(pairs);
+
+        BorderPane root = new BorderPane();
+        root.setBackground(background);
+        root.setPadding(new Insets(10));
+
+        GridPane grid = new GridPane();
+        grid.setAlignment(Pos.CENTER);
+        grid.setHgap(10);
+        grid.setVgap(10);
+
+        HBox infoBox = new HBox(20);
+        infoBox.setAlignment(Pos.CENTER);
+        levelLabel = new Label("Level: " + level);
+        creditsLabel = new Label("Credits: " + credits);
+        mistakesLabel = new Label("Mistakes: " + mistakes + "/3");
+        for (Label l : Arrays.asList(levelLabel, creditsLabel, mistakesLabel)) {
+            l.setFont(Font.font("Comic Sans MS", FontWeight.BOLD, 16));
+            l.setTextFill(Color.web("#ecf0f1"));
+            l.setEffect(new DropShadow(2, Color.BLACK));
+        }
+        infoBox.getChildren().addAll(levelLabel, creditsLabel, mistakesLabel);
+        root.setTop(infoBox);
+
+        List<Card> cards = new ArrayList<>();
+        for (String res : deck) {
+            Card c = new Card(res, 80, 100);
+            c.button.setOnMouseClicked(e -> handleCardClick(c, cards, difficulty, root));
+            cards.add(c);
+        }
+
+        for (int i = 0; i < cards.size(); i++) {
+            int col = i % 4;
+            int row = i / 4;
+            grid.add(cards.get(i).button, col, row);
+        }
+        root.setCenter(grid);
+
+        Button back = createBackButton();
+        back.setOnAction(e -> fadeToScene(createMainMenu(background)));
+        BorderPane.setAlignment(back, Pos.BOTTOM_CENTER);
+        BorderPane.setMargin(back, new Insets(10));
+        root.setBottom(back);
+
+        Scene gameScene = new Scene(root, SCENE_W, SCENE_H);
+        fadeToScene(gameScene);
+
+        for (Card c : cards) c.revealTemp();
+        int previewTime = switch (difficulty) {
+            case EASY -> 10;
+            case MEDIUM -> 15;
+            case HARD -> 20;
+        };
+        PauseTransition preview = new PauseTransition(Duration.seconds(previewTime));
+        preview.setOnFinished(e -> cards.forEach(Card::hide));
+        preview.play();
+
+        mistakes = 0;
+        firstSelected = null;
+    }
+
+    private void handleCardClick(Card clicked, List<Card> cards, Difficulty difficulty, Pane root) {
+        if (clicked.isRevealed || clicked.isMatched) return;
+
+        clicked.reveal();
+        clicked.button.setEffect(new Glow(0.3));
+
+        if (firstSelected == null) {
+            firstSelected = clicked;
+        } else {
+            if (firstSelected.resource.equals(clicked.resource)) {
+                firstSelected.setMatched();
+                clicked.setMatched();
+
+                roundCredits += switch (difficulty) {
+                    case EASY -> 2;
+                    case MEDIUM -> 3;
+                    case HARD -> 5;
+                };
+
+                if (clicked.isPlatinumPair()) roundCredits += 1000;
+
+                credits += roundCredits;
+                level = credits / 100;
+                updateLabels();
+
+                firstSelected = null;
+
+                boolean allMatched = cards.stream().allMatch(c -> c.isMatched);
+                if (allMatched) {
+                    mistakes = 0;
+                    firstSelected = null;
+                    PauseTransition nextRound = new PauseTransition(Duration.seconds(1));
+                    nextRound.setOnFinished(e -> startGame(root.getBackground(), difficulty));
+                    nextRound.play();
+                }
+
+            } else {
+                mistakes++;
+                updateLabels();
+
+                PauseTransition pause = new PauseTransition(Duration.seconds(0.7));
+                pause.setOnFinished(e -> {
+                    firstSelected.hide();
+                    clicked.hide();
+                    firstSelected = null;
+                    if (mistakes >= 3) showGameOver(root);
+                });
+                pause.play();
+            }
+        }
+    }
+
+    private void updateLabels() {
+        levelLabel.setText("Level: " + level);
+        creditsLabel.setText("Credits: " + credits);
+        mistakesLabel.setText("Mistakes: " + mistakes + "/3");
+    }
+
+    private List<String> generateDeck(int pairs) {
+        List<String> nonPlatinum = new ArrayList<>();
+        for (String s : ALL_DUCKS) if (!s.equals("/PlatinumDuckCard.png")) nonPlatinum.add(s);
+        Collections.shuffle(nonPlatinum, rng);
+
+        List<String> chosen = new ArrayList<>();
+        for (int i = 0; i < pairs; i++) chosen.add(nonPlatinum.get(i % nonPlatinum.size()));
+
+        if (rng.nextDouble() < 0.005) {
+            int idx = rng.nextInt(chosen.size());
+            chosen.set(idx, "/PlatinumDuckCard.png");
+        }
+
+        List<String> deck = new ArrayList<>();
+        for (String s : chosen) {
+            deck.add(s);
+            deck.add(s);
+        }
+
+        Collections.shuffle(deck, rng);
+        return deck;
+    }
+
+    private void showGameOver(Pane gameRoot) {
+        StackPane overlay = new StackPane();
+        overlay.setPrefSize(SCENE_W, SCENE_H);
+        overlay.setStyle("-fx-background-color: rgba(0,0,0,0.65);");
+
+        VBox box = new VBox(20);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(20));
+        box.setStyle("-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);" +
+                "-fx-background-radius: 18; -fx-border-radius: 18; -fx-border-color: #f1c40f; -fx-border-width: 2;");
+
+        Text title = new Text("GAME OVER");
+        title.setFont(Font.font("Monospace", FontWeight.BOLD, 28));
+        title.setFill(Color.WHITE);
+
+        Text roundCreditText = new Text("Round Credits: " + roundCredits);
+        roundCreditText.setFont(Font.font("Comic Sans MS", FontWeight.BOLD, 20));
+        roundCreditText.setFill(Color.WHITE);
+
+        Button menu = new Button("Back to Menu");
+        menu.setFont(Font.font("Comic Sans MS", FontWeight.BOLD, 20));
+        menu.setPrefWidth(160);
+        menu.setStyle(MAIN_BTN_STYLE);
+        addButtonEffects(menu);
+        menu.setOnAction(e -> {
+            roundCredits = 0;
+            fadeToScene(createMainMenu(gameRoot.getBackground()));
+        });
+
+        box.getChildren().addAll(title, roundCreditText, menu);
+
+        double xOffset = 200;
+        double yOffset = 250;
+        box.setTranslateX(xOffset);
+        box.setTranslateY(yOffset);
+
+        overlay.getChildren().add(box);
+
+        if (gameRoot instanceof Pane) gameRoot.getChildren().add(overlay);
+
+        FadeTransition fade = new FadeTransition(Duration.millis(350), overlay);
+        fade.setFromValue(0);
+        fade.setToValue(1);
+
+        ScaleTransition scale = new ScaleTransition(Duration.millis(350), box);
+        scale.setFromX(0.7);
+        scale.setFromY(0.7);
+        scale.setToX(1.0);
+        scale.setToY(1.0);
+
+        fade.play();
+        scale.play();
+    }
+
+    private void fadeToScene(Scene newScene) {
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(300), window.getScene().getRoot());
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+        fadeOut.setOnFinished(e -> {
+            window.setScene(newScene);
+            FadeTransition fadeIn = new FadeTransition(Duration.millis(300), newScene.getRoot());
+            fadeIn.setFromValue(0.0);
+            fadeIn.setToValue(1.0);
+            fadeIn.play();
+        });
+        fadeOut.play();
+    }
+
+    private Button createBackButton() {
+        Button back = new Button("←");
+        back.setPrefSize(80, 40);
+        back.setStyle(BACK_BTN_STYLE);
+        addButtonEffects(back);
+        return back;
+    }
+
+    private void addButtonEffects(Button button) {
+        button.setOnMouseEntered(e -> {
+            ScaleTransition scaleUp = new ScaleTransition(Duration.millis(150), button);
+            scaleUp.setToX(1.05);
+            scaleUp.setToY(1.05);
+            scaleUp.play();
+        });
+        button.setOnMouseExited(e -> {
+            ScaleTransition scaleDown = new ScaleTransition(Duration.millis(150), button);
+            scaleDown.setToX(1.0);
+            scaleDown.setToY(1.0);
+            scaleDown.play();
+        });
+    }
+
+    // --- Inner classes ---
+    private class Card {
+        String resource;
+        Button button;
+        boolean isRevealed = false;
+        boolean isMatched = false;
+        ImageView frontView;
+        ImageView backView;
+
+        Card(String resource, double w, double h) {
+            this.resource = resource;
+            Image frontImg = new Image(Objects.requireNonNull(getClass().getResource(resource)).toExternalForm(), w, h, true, true);
+            frontView = new ImageView(frontImg);
+            Image backImg = new Image(Objects.requireNonNull(getClass().getResource(CARD_BACK)).toExternalForm(), w, h, true, true);
+            backView = new ImageView(backImg);
+            button = new Button();
+            button.setGraphic(backView);
+            button.setPrefSize(w, h);
+            button.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-cursor: hand;");
+        }
+
+        void reveal() {
+            if (isMatched) return;
+            button.setGraphic(frontView);
+            isRevealed = true;
+        }
+
+        void revealTemp() {
+            button.setGraphic(frontView);
+            isRevealed = true;
+        }
+
+        void hide() {
+            if (isMatched) return;
+            button.setGraphic(backView);
+            isRevealed = false;
+        }
+
+        void setMatched() {
+            isMatched = true;
+            button.setGraphic(frontView);
+            button.setDisable(true);
+        }
+
+        boolean isPlatinumPair() {
+            return "/PlatinumDuckCard.png".equals(resource);
+        }
+    }
+
+    private enum Difficulty { EASY, MEDIUM, HARD }
+
     private boolean escPressedOnce = false;
 
-    public void DeskTop(Stage stage) {
-        Image frontDuck = new Image(getClass().getResource("/FrontSideOriginalDuck.png").toExternalForm());
-        Image rightStayDuck = new Image(getClass().getResource("/RightSideStayOriginalDuck.png").toExternalForm());
-        Image rightStompDuck = new Image(getClass().getResource("/RightSideStompOriginalDuck.png").toExternalForm());
-        Image leftStayDuck = new Image(getClass().getResource("/LeftSideStayOriginalDuck.png").toExternalForm());
-        Image leftStompDuck = new Image(getClass().getResource("/LeftSideStompOriginalDuck.png").toExternalForm());
+    public void DeskTop(Stage stage, String username) {
+        Image frontDuck = (desktopFrontDuck != null) ? desktopFrontDuck : new Image(getClass().getResource("/FrontSideOriginalDuck.png").toExternalForm());
+        Image rightStayDuck = (desktopRightStayDuck != null) ? desktopRightStayDuck : new Image(getClass().getResource("/RightSideStayOriginalDuck.png").toExternalForm());
+        Image rightStompDuck = (desktopRightStompDuck != null) ? desktopRightStompDuck : new Image(getClass().getResource("/RightSideStompOriginalDuck.png").toExternalForm());
+        Image leftStayDuck = (desktopLeftStayDuck != null) ? desktopLeftStayDuck : new Image(getClass().getResource("/LeftSideStayOriginalDuck.png").toExternalForm());
+        Image leftStompDuck = (desktopLeftStompDuck != null) ? desktopLeftStompDuck : new Image(getClass().getResource("/LeftSideStompOriginalDuck.png").toExternalForm());
 
         // =====================
         // GRASS
@@ -1185,7 +1839,6 @@ public class Main extends Application {
         duckView.setFitWidth(128);
         duckView.setFitHeight(128);
         duckView.setPreserveRatio(true);
-
         StackPane duckContainer = new StackPane(duckView);
         duckContainer.setAlignment(Pos.BOTTOM_LEFT);
         duckContainer.setPrefSize(200, 200);
@@ -1195,10 +1848,8 @@ public class Main extends Application {
         // =====================
         Pane root = new Pane();
         root.setBackground(new Background(new BackgroundFill(Color.TRANSPARENT, null, null))); // transparent root
-
         double screenWidth = Screen.getPrimary().getVisualBounds().getWidth();
         double sceneHeight = 200;
-
         root.setPrefSize(screenWidth, sceneHeight);
 
         // Grass positioning
@@ -1209,8 +1860,8 @@ public class Main extends Application {
         double duckOffset = -8; // adjust duck slightly lower
         duckContainer.setLayoutY(sceneHeight - duckView.getFitHeight() - grassView.getFitHeight() + duckOffset);
 
-        // Add nodes: grass first, duck on top
-        root.getChildren().addAll(grassView, duckContainer);
+        // Add nodes: duck behind, grass in front
+        root.getChildren().addAll(duckContainer, grassView);
 
         Scene scene = new Scene(root, screenWidth, sceneHeight, Color.TRANSPARENT);
 
@@ -1284,19 +1935,21 @@ public class Main extends Application {
         moveRight.play();
 
         // =====================
-        // ESC TO EXIT
+        // ESC TO GO BACK TO DUCKHOUSE (new stage)
         // =====================
         scene.setOnKeyPressed(event -> {
-            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
-                if (escPressedOnce) {
-                    root.getChildren().clear();
-                    stage.close();
-                } else {
-                    escPressedOnce = true;
-                    PauseTransition reset = new PauseTransition(Duration.seconds(1));
-                    reset.setOnFinished(ev -> escPressedOnce = false);
-                    reset.play();
-                }
+            if (event.getCode() == KeyCode.ESCAPE) {
+                // stop animations
+                walkRightAnim.stop();
+                walkLeftAnim.stop();
+                moveRight.stop();
+                moveLeft.stop();
+
+                // close floating desktop
+                stage.close();
+
+                // open DuckHouse in a new stage
+                DuckHouse(new Stage(), username);
             }
         });
     }
