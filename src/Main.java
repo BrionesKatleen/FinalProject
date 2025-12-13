@@ -685,7 +685,7 @@ public class Main extends Application {
         double DEFAULT_SIZE = 150;
         double SELECTED_SIZE = 290;
 
-        // Use unified duck logic
+        // Use unified duck logic hehe
         Image characterToUse = getDuckForScene("/dockieBath.png");
 
         ImageView dockieView = null;
