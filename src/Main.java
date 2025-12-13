@@ -29,7 +29,7 @@ public class Main extends Application {
     private static MediaPlayer mediaPlayer;
     private double happiness = 0.60;
     private double hunger = 0.70;
-    private double energy = 0.50;
+    private double energy = 0.10;
     private double cleanliness = 0.50;
     private ImageView foodDisplay;
     private int foodIndex = 0;
@@ -262,6 +262,12 @@ public class Main extends Application {
         stage.show();
     }
 
+    // --- Universal duck helper (clean version, no dirty duck) ---
+    private Image getDuckForScene(String defaultFile) {
+        return selectedCharacter != null ? selectedCharacter : new Image(getClass().getResource(defaultFile).toExternalForm());
+    }
+
+    // --- DuckHouse method (unchanged, uses getDuckForScene) ---
     private void DuckHouse(Stage stage, String username) {
         BorderPane layout = sceneTemplate(stage, "house.png", username);
         StackPane root = (StackPane) stage.getScene().getRoot();
@@ -269,7 +275,6 @@ public class Main extends Application {
         double DEFAULT_SIZE = 80;
         double SELECTED_SIZE = 130;
 
-        // Use unified duck logic
         Image characterToUse = getDuckForScene("/dockie.png");
 
         ImageView charac = new ImageView(characterToUse);
@@ -300,16 +305,7 @@ public class Main extends Application {
         StackPane.setMargin(userLabel, new Insets(130, 0, 0, 57));
         if (!root.getChildren().contains(userLabel)) root.getChildren().add(userLabel);
     }
-    // Dirty duck constant
-    private final Image dirtyDuck = new Image(getClass().getResource("/dirtyDuck.png").toExternalForm());
 
-    // Universal duck helper
-    private Image getDuckForScene(String defaultFile) {
-        if (cleanliness <= 0.3) {
-            return dirtyDuck;
-        }
-        return selectedCharacter != null ? selectedCharacter : new Image(getClass().getResource(defaultFile).toExternalForm());
-    }
 
     // Food quantities matching the number of foods
     private int[] foodQuantities = {4, 3, 5, 2};
@@ -910,11 +906,11 @@ public class Main extends Application {
         leftStack.setAlignment(Pos.TOP_LEFT);
 
         // ---------- BOTTOM NAV PIC BUTTONS ----------
-        Button btn1 = makePicButton("houseIcon", 35);
-        Button btn2 = makePicButton("bedIcon", 35);
-        Button btn3 = makePicButton("foodIcon", 35);
-        Button btn4 = makePicButton("closetIcon", 35);
-        Button btn5 = makePicButton("bathIcon", 35);
+        Button btn1 = makePicButton("houseIcon", 45);
+        Button btn2 = makePicButton("bedIcon", 45);
+        Button btn3 = makePicButton("foodIcon", 45);
+        Button btn4 = makePicButton("closetIcon", 45);
+        Button btn5 = makePicButton("bathIcon", 45);
 
         btn1.setOnAction(e -> DuckHouse(stage, username));
         btn2.setOnAction(e -> bedRoom(stage, username));
@@ -922,7 +918,7 @@ public class Main extends Application {
         btn4.setOnAction(e -> closet(stage, username));
         btn5.setOnAction(e -> bathRoom(stage, username));
 
-        HBox bottomRow = new HBox(20, btn1, btn2, btn3, btn4, btn5);
+        HBox bottomRow = new HBox(15, btn1, btn2, btn3, btn4, btn5);
         bottomRow.setAlignment(Pos.CENTER);
         bottomRow.setPadding(new Insets(10));
 
