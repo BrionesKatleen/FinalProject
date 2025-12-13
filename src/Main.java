@@ -30,7 +30,7 @@ public class Main extends Application {
     private double happiness = 0.60;
     private double hunger = 0.70;
     private double energy = 0.10;
-    private double cleanliness = 0.50;
+    private double cleanliness = 0.20;
     private ImageView foodDisplay;
     private int foodIndex = 0;
     private final String[] foods = {"peas.png", "birdseed.png", "corn.png", "oats.png"};
@@ -267,13 +267,47 @@ public class Main extends Application {
         return selectedCharacter != null ? selectedCharacter : new Image(getClass().getResource(defaultFile).toExternalForm());
     }
 
+    private Image dirtImage = new Image(
+            getClass().getResource("dirty.png")
+                    .toExternalForm()
+    );
+
+    private void attachDirtOverlay(ImageView duck, StackPane root) {
+        // Remove old overlay if exists
+        if (dirtOverlay != null) {
+            root.getChildren().remove(dirtOverlay);
+        }
+
+        if (cleanliness <= 30) {
+            dirtOverlay = new ImageView(dirtImage);
+            dirtOverlay.setFitWidth(duck.getFitWidth());
+            dirtOverlay.setPreserveRatio(true);
+
+            // Position exactly on top of duck
+            dirtOverlay.layoutXProperty().bind(duck.layoutXProperty());
+            dirtOverlay.layoutYProperty().bind(duck.layoutYProperty());
+            dirtOverlay.translateXProperty().bind(duck.translateXProperty());
+            dirtOverlay.translateYProperty().bind(duck.translateYProperty());
+
+            StackPane.setAlignment(dirtOverlay, StackPane.getAlignment(duck));
+            StackPane.setMargin(dirtOverlay, StackPane.getMargin(duck));
+
+            root.getChildren().add(dirtOverlay);
+            dirtOverlay.toFront(); // IMPORTANT: in front of duck
+        }
+    }
+
+
+    private ImageView dirtOverlay;
+
+
     // --- DuckHouse method (unchanged, uses getDuckForScene) ---
     private void DuckHouse(Stage stage, String username) {
         BorderPane layout = sceneTemplate(stage, "house.png", username);
         StackPane root = (StackPane) stage.getScene().getRoot();
 
         double DEFAULT_SIZE = 80;
-        double SELECTED_SIZE = 130;
+        double SELECTED_SIZE = 170;
 
         Image characterToUse = getDuckForScene("/dockie.png");
 
@@ -281,7 +315,7 @@ public class Main extends Application {
         charac.setFitWidth((selectedCharacter != null) ? SELECTED_SIZE : DEFAULT_SIZE);
         charac.setPreserveRatio(true);
         StackPane.setAlignment(charac, Pos.BOTTOM_CENTER);
-        StackPane.setMargin(charac, new Insets(0, 0, 210, 0));
+        StackPane.setMargin(charac, new Insets(0, 0, 187, 0));
 
         if (!isNightMode && !root.getChildren().contains(charac)) root.getChildren().add(charac);
 
@@ -318,7 +352,7 @@ public class Main extends Application {
         StackPane root = (StackPane) stage.getScene().getRoot();
 
         double DEFAULT_SIZE = 150;
-        double SELECTED_SIZE = 255;
+        double SELECTED_SIZE = 295;
 
         // Use unified duck logic
         Image characterToUse = getDuckForScene("/dockieKitchen.png");
@@ -518,7 +552,7 @@ public class Main extends Application {
         StackPane root = (StackPane) stage.getScene().getRoot();
 
         double DEFAULT_SIZE = 150;
-        double SELECTED_SIZE = 250;
+        double SELECTED_SIZE = 290;
 
         // Use unified duck logic
         Image characterToUse = getDuckForScene("/dockieBath.png");
@@ -696,7 +730,7 @@ public class Main extends Application {
 
         // --- Duck ImageView ---
         double DEFAULT_SIZE = 150;
-        double SELECTED_SIZE = 250;
+        double SELECTED_SIZE = 290;
         ImageView duckView = new ImageView(isNightMode ? sleepingDuck : awakeDuck);
         double duckWidth = isNightMode ? 210 : ((selectedCharacter != null) ? SELECTED_SIZE : DEFAULT_SIZE);
         duckView.setFitWidth(duckWidth);
@@ -754,9 +788,9 @@ public class Main extends Application {
 
         // --- Character Images & Level requirements ---
         Image[] characters = new Image[] {
-                new Image(getClass().getResource("DuckCatHat.png").toExternalForm()),   // Level 10
-                new Image(getClass().getResource("DuckFrogHat.png").toExternalForm()),  // Level 20
-                new Image(getClass().getResource("DuckStitchHat.png").toExternalForm()) // Level 30
+                new Image(getClass().getResource("F with hat.png").toExternalForm()),   // Level 10
+                new Image(getClass().getResource("F with frog hat.png").toExternalForm()),  // Level 20
+                new Image(getClass().getResource("F with hat stitch.png").toExternalForm()) // Level 30
         };
         int[] levelRequired = {10, 20, 30};
 
