@@ -41,7 +41,7 @@ public class Main extends Application {
             "corn night.png",
             "oats night.png"
     };
-    // Adjustable sizes per scene
+    // Adjustable sizes per scene l
     @Override
     public void start(Stage stage) {
 
