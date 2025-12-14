@@ -25,6 +25,7 @@ import javafx.scene.media.MediaPlayer;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import backend.services.GameBridge;
+import backend.services.GameBridge.DuckState;
 
 import java.net.URL;
 import java.util.*;
@@ -38,7 +39,7 @@ public class Main extends Application {
 
     // UPDATE: Replace hardcoded stats with GameBridge integration
     private GameBridge gameBridge = GameBridge.getInstance();
-
+//    public enum DuckState { IDLE, SLEEPING, EATING, BATHE, PLAYING }
     // UPDATE: These will be populated from GameBridge
     private double happiness = gameBridge.getStat("HAPPINESS");
     private double hunger = gameBridge.getStat("HUNGER");
@@ -1095,6 +1096,10 @@ public class Main extends Application {
                 duckView.setImage(awakeDuck);
                 duckView.setFitWidth((selectedCharacter != null) ? SELECTED_AWAKE : DEFAULT_AWAKE);
                 StackPane.setMargin(duckView, new Insets(0, 0, 180, 0));
+
+                gameBridge.performAction("WAKE");
+                gameBridge.performAction("UPDATE_STATE", DuckState.IDLE);
+
             } else {
                 // NIGHT MODE
                 lampView.setImage(lampOff);
@@ -1102,6 +1107,8 @@ public class Main extends Application {
                 duckView.setImage(sleepingDuck);
                 duckView.setFitWidth((selectedCharacter != null) ? SELECTED_SLEEPING : DEFAULT_SLEEPING);
                 StackPane.setMargin(duckView, isCustomSleepingDuck ? selectedSleepingMargin : defaultSleepingMargin);
+
+                gameBridge.performAction("SLEEP");
             }
         });
 
@@ -1740,7 +1747,10 @@ public class Main extends Application {
 
         // --- Back button ---
         Button back = createBackButton();
-        back.setOnAction(e -> DuckHouse(stage, username));
+        back.setOnAction(e -> {
+            gameBridge.performAction("UPDATE_STATE", DuckState.IDLE);
+            DuckHouse(stage, username);
+        });
         BorderPane.setAlignment(back, Pos.BOTTOM_CENTER);
         BorderPane.setMargin(back, new Insets(10));
         root.setBottom(back);
@@ -1755,7 +1765,12 @@ public class Main extends Application {
             case HARD -> 20;
         };
         PauseTransition preview = new PauseTransition(Duration.seconds(previewTime));
-        preview.setOnFinished(e -> cards.forEach(Card::hide));
+        preview.setOnFinished(e -> {
+            cards.forEach(Card::hide);
+            // Start playing state when preview ends
+            gameBridge.performAction("PLAYING");
+            gameBridge.performAction("UPDATE_STATE", DuckState.PLAYING);
+        });
         preview.play();
 
         mistakes = 0;
@@ -1873,6 +1888,8 @@ public class Main extends Application {
         menu.setStyle(MAIN_BTN_STYLE);
         addButtonEffects(menu);
         menu.setOnAction(e -> {
+            // Return to IDLE when game ends and going back to menu
+            gameBridge.performAction("UPDATE_STATE", DuckState.IDLE);
             roundCredits = 0;
             fadeToScene(createMainMenu(gameRoot.getBackground(), window, currentUsername));
 

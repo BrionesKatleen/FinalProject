@@ -54,7 +54,7 @@ public class GameManager {
                     printDuckStatus(); // Optional: print current status
                 }
             }
-        }, 60000, 60000); // Run every 1 minute (60000 ms)
+        }, 30000, 30000); // Run every 1 minute (60000 ms)
     }
 
     // ====================
