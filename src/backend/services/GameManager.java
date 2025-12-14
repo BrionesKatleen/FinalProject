@@ -267,3 +267,112 @@ public class GameManager {
         db.close();
     }
 }
+//package backend.services;
+//
+//import database.Database;
+//import java.util.*;
+//
+//public class GameManager {
+//    private Database db;
+//    private StatsManager statsManager;
+//    private Map<String, Integer> userIds = new HashMap<>();
+//
+//    public GameManager() {
+//        try {
+//            db = new Database();
+//            statsManager = new StatsManager();
+//        } catch (Exception e) {
+//            System.err.println("Failed to initialize GameManager: " + e.getMessage());
+//        }
+//    }
+//
+//    // --- AUTHENTICATION ---
+//    public boolean register(String username, String password) {
+//        if (db.createUser(username, password)) {
+//            int userId = db.getUserId(username);
+//            userIds.put(username, userId);
+//            db.createDuck(userId);
+//            db.initFood(userId);
+//            System.out.println("Registered user: " + username);
+//            return true;
+//        }
+//        return false;
+//    }
+//
+//    public boolean login(String username, String password) {
+//        boolean success = db.authenticate(username, password);
+//        if (success) {
+//            int userId = db.getUserId(username);
+//            userIds.put(username, userId);
+//
+//            // Initialize stats if first login
+//            Map<String, Double> stats = db.getDuckStats(username);
+//            if (stats.isEmpty()) {
+//                db.createDuck(userId);
+//                db.initFood(userId);
+//            }
+//
+//            // Apply stat decay
+//            applyStatDecay(username);
+//        }
+//        return success;
+//    }
+//
+//    private void applyStatDecay(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        if (!stats.isEmpty()) {
+//            stats = statsManager.applyStatDecay(stats);
+//            db.updateDuckStats(username, stats);
+//        }
+//    }
+//
+//    // --- DUCK ACTIONS ---
+//    public void feedDuck(String username, int foodType) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        int[] foodQty = db.getFoodQuantities(username);
+//        if (foodQty[foodType] > 0) {
+//            stats = statsManager.feedDuck(stats, foodType);
+//            foodQty[foodType]--;
+//            db.updateFoodQuantity(username, foodType, foodQty[foodType]);
+//            db.updateDuckStats(username, stats);
+//        }
+//    }
+//
+//    public void cleanDuck(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        stats = statsManager.cleanDuck(stats);
+//        db.updateDuckStats(username, stats);
+//    }
+//
+//    public void playWithDuck(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        stats = statsManager.playWithDuck(stats);
+//        db.updateDuckStats(username, stats);
+//    }
+//
+//    public void sleepDuck(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        stats = statsManager.sleepDuck(stats);
+//        db.updateDuckStats(username, stats);
+//    }
+//
+//    public Map<String, Double> getDuckStats(String username) {
+//        return db.getDuckStats(username);
+//    }
+//
+//    public int getCredits(String username) {
+//        return db.getUserCredits(username);
+//    }
+//
+//    public int getLevel(String username) {
+//        return db.getUserLevel(username);
+//    }
+//
+//    public int[] getFoodQuantities(String username) {
+//        return db.getFoodQuantities(username);
+//    }
+//
+//    public void shutdown() {
+//        db.close();
+//    }
+//}
