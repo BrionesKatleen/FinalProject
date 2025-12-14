@@ -5,16 +5,16 @@ public class Hat {
     private String name;
     private String description;
     private int price;
-    private String rarity;
+    private int lvlRequired;
 
     public Hat() {}
 
-    public Hat(int id, String name, String description, int price, String rarity) {
+    public Hat(int id, String name, String description, int price, int lvlRequired) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.price = price;
-        this.rarity = rarity;
+        this.lvlRequired = lvlRequired;
     }
 
     // Getters and Setters
@@ -30,11 +30,7 @@ public class Hat {
     public int getPrice() { return price; }
     public void setPrice(int price) { this.price = price; }
 
-    public String getRarity() { return rarity; }
-    public void setRarity(String rarity) { this.rarity = rarity; }
+    public int getLvlRequired() { return lvlRequired; }
+    public void setLvlRequired(int lvlRequired) { this.lvlRequired = lvlRequired; }
 
-    @Override
-    public String toString() {
-        return name + " (" + rarity + ") - " + price + " coins";
-    }
 }

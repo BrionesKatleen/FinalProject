@@ -1,7 +1,7 @@
 package backend.services;
 
-import database.Database;
 import backend.models.*;
+import database.Database;
 import java.util.*;
 
 public class GameManager {
@@ -16,52 +16,50 @@ public class GameManager {
     public GameManager() {
         try {
             this.db = new Database();
-            this.statsManager = new StatsManager(); // NEW: Initialize StatsManager
+            this.statsManager = new StatsManager();
             loadShopItems();
             startStatTimer();
-
-            db.testConnection();
         } catch (Exception e) {
             System.err.println("GameManager initialization failed: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    // === UPDATED STAT DECAY TIMER ===
+    // ====================
+    // STAT DECAY TIMER - FIXED to run less frequently
+    // ====================
     private void startStatTimer() {
         statTimer = new Timer();
         statTimer.schedule(new TimerTask() {
             @Override
             public void run() {
                 if (currentDuck != null) {
-                    // NEW: Use StatsManager for all stat calculations
+                    // Apply decay
                     statsManager.applyStatDecay(currentDuck);
 
-                    // Save to database
+                    // Update database
                     db.updateDuck(currentDuck);
 
-                    // Check for warnings
+                    // Check status
                     if (currentDuck.needsAttention()) {
-                        System.out.println("[ALERT] Duck needs attention: " +
-                                currentDuck.getStatusMessage());
+                        System.out.println("[ALERT] Duck needs attention: " + currentDuck.getStatusMessage());
                     }
 
-                    // Check if duck is capable of doing activities
                     if (!currentDuck.isFine()) {
-                        System.out.println("[CRITICAL] Duck has died! Stats are too low!");
+                        System.out.println("[WARNING] Duck stats are very low!");
+                        // Don't kill the duck, just warn
                     }
 
-                    // Log status every 5 minutes
-                    if (System.currentTimeMillis() % (5 * 60 * 1000) < 1000) {
-                        System.out.println("[DUCK STATUS] " + currentDuck.toString());
-                        System.out.println("[TIME STATUS] " + statsManager.getNightTimeStatus());
-                    }
+                    System.out.println("[TIME] " + statsManager.getTimeStatus(currentDuck));
+                    printDuckStatus(); // Optional: print current status
                 }
             }
-        }, 0, 60000); // Check every 1 minute
+        }, 60000, 60000); // Run every 1 minute (60000 ms)
     }
 
-    // === UPDATED AUTHENTICATION ===
+    // ====================
+    // USER AUTHENTICATION
+    // ====================
     public boolean login(String username, String password) {
         String hash = hashPassword(password);
         User user = db.getUser(username, hash);
@@ -70,103 +68,28 @@ public class GameManager {
             this.currentUser = user;
             this.currentDuck = db.getDuck(user.getId());
 
-            if (currentDuck != null) {
-                // NEW: Use StatsManager to apply decay
-                statsManager.applyStatDecay(currentDuck);
+            if (currentDuck == null) {
+                currentDuck = new Duck(user.getId());
+                db.createDuck(currentDuck);
+                System.out.println("New duck created for player!");
+
+                // Initialize with good stats
+                currentDuck.setEnergy(100);
+                currentDuck.setHunger(100);
+                currentDuck.setCleanliness(100);
+                currentDuck.setHappiness(100);
                 db.updateDuck(currentDuck);
-                System.out.println("Welcome back! " + currentDuck.getStatusMessage());
-                System.out.println("Last updated: " +
-                        new java.util.Date(currentDuck.getLastUpdatedTime()));
             }
 
+            System.out.println("Welcome! " + currentDuck.getStatusMessage());
+            System.out.println("Time Status: " + statsManager.getTimeStatus(currentDuck));
+            printDuckStatus();
             return true;
         }
         return false;
     }
 
-    // === UPDATED DUCK ACTIONS ===
-    public void feedDuck(int foodId) {
-        if (currentDuck == null || currentUser == null) {
-            System.out.println("No duck found! Please login first.");
-            return;
-        }
-
-        Food food = getFoodById(foodId);
-        if (food != null) {
-            if (db.useFoodFromInventory(currentUser.getId(), foodId, 1)) {
-                // NEW: Use StatsManager for feeding logic
-                statsManager.feedDuck(currentDuck);
-
-                // Apply food-specific boosts
-                currentDuck.setHunger(currentDuck.getHunger() + food.getHungerRestore());
-                currentDuck.setHappiness(currentDuck.getHappiness() + food.getHappinessBonus());
-                if (food.getEnergyRestore() > 0) {
-                    currentDuck.setEnergy(currentDuck.getEnergy() + food.getEnergyRestore());
-                }
-
-                currentUser.addCoins(3);
-                currentDuck.setLastUpdatedTime(System.currentTimeMillis());
-
-                db.updateDuck(currentDuck);
-                db.updateUser(currentUser);
-
-                System.out.println("Fed " + currentDuck.getStatusMessage());
-            } else {
-                System.out.println("No " + food.getName() + " in inventory!");
-            }
-        }
-    }
-
-    public void cleanDuck() {
-        if (currentDuck == null || currentUser == null) return;
-
-        // NEW: Use StatsManager for cleaning logic
-        statsManager.batheDuck(currentDuck);
-        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
-
-        currentUser.addCoins(2);
-
-        db.updateDuck(currentDuck);
-        db.updateUser(currentUser);
-
-        System.out.println("Duck cleaned! " + currentDuck.getStatusMessage());
-    }
-
-    public void playWithDuck() {
-        if (currentDuck == null || currentUser == null) return;
-
-        // NEW: Use StatsManager for playing logic
-        statsManager.playWithDuck(currentDuck);
-        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
-
-        currentUser.addCoins(5);
-
-        db.updateDuck(currentDuck);
-        db.updateUser(currentUser);
-
-        System.out.println("Played with duck! " + currentDuck.getStatusMessage());
-    }
-
-    public void putDuckToSleep() {
-        if (currentDuck == null) return;
-
-        // NEW: Use StatsManager for sleeping logic
-        statsManager.sleepDuck(currentDuck);
-        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
-
-        db.updateDuck(currentDuck);
-
-        System.out.println("Duck is sleeping... Zzz");
-    }
-
-    // NEW: Added method to get nighttime status for UI
-    public String getNightTimeStatus() {
-        return statsManager.getNightTimeStatus();
-    }
-
-    // === REST OF THE METHODS REMAIN THE SAME (no conflicts) ===
     public boolean register(String username, String password) {
-        // ... unchanged ...
         if (db.userExists(username)) {
             System.err.println("Username already exists: " + username);
             return false;
@@ -175,42 +98,148 @@ public class GameManager {
         String hash = hashPassword(password);
         int userId = db.createUser(username, hash);
 
-        if (userId > 0) {
-            return login(username, password);
-        }
-        return false;
+        return userId > 0 && login(username, password);
     }
 
     private String hashPassword(String password) {
         return String.valueOf(password.hashCode());
     }
 
-    public void printDuckStatus() {
-        // ... unchanged ...
-        if (currentDuck == null) {
-            System.out.println("No duck found!");
+    // ====================
+    // DUCK ACTIONS - FIXED for 0-100 scale
+    // ====================
+    public void feedDuck(int foodId) {
+        if (!checkDuck()) return;
+
+        Food food = getFoodById(foodId);
+        if (food == null) {
+            System.out.println("Food not found with ID: " + foodId);
             return;
         }
 
+        // CHECK INVENTORY FIRST
+        if (!db.useFoodFromInventory(currentUser.getId(), foodId, 1)) {
+            System.out.println("No " + food.getName() + " in inventory!");
+            return;
+        }
+
+        // Only proceed if food is available
+        currentDuck.setState("EATING");
+
+        // Apply food effects (multiply by 100 to convert to 0-100 scale)
+        double hungerRestore = food.getHungerRestore() * 100;
+        double energyRestore = food.getEnergyRestore() * 100;
+        double happinessBonus = food.getHappinessBonus() * 100;
+        double cleanlinessReduction = food.getCleanlinessReduction() * 100;
+
+        // Apply effects with bounds checking
+        double newHunger = clampStat(currentDuck.getHunger() + hungerRestore);
+        double newEnergy = clampStat(currentDuck.getEnergy() + energyRestore);
+        double newHappiness = clampStat(currentDuck.getHappiness() + happinessBonus);
+        double newCleanliness = clampStat(currentDuck.getCleanliness() + cleanlinessReduction);
+
+        currentDuck.setHunger(newHunger);
+        currentDuck.setEnergy(newEnergy);
+        currentDuck.setHappiness(newHappiness);
+        currentDuck.setCleanliness(newCleanliness);
+        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
+
+        // Add coins for feeding
+        int coinsEarned = (int) food.getPrice();
+        currentUser.addCoins(coinsEarned);
+
+        db.updateDuck(currentDuck);
+        db.updateUser(currentUser);
+
+        System.out.println("Fed " + food.getName() + "! " + currentDuck.getStatusMessage());
+        System.out.println(String.format("Effects: Hunger +%.0f, Energy +%.0f, Happiness +%.0f, Cleanliness %.0f",
+                hungerRestore, energyRestore, happinessBonus, cleanlinessReduction));
+        System.out.println("Earned " + coinsEarned + " coins!");
+        printDuckStatus();
+    }
+
+    private double clampStat(double value) {
+        return Math.max(0.0, Math.min(100.0, value));
+    }
+
+    public void cleanDuck() {
+        if (!checkDuck()) return;
+
+        statsManager.batheDuck(currentDuck);
+        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
+        currentUser.addCoins(2);
+
+        db.updateDuck(currentDuck);
+        db.updateUser(currentUser);
+
+        System.out.println("Duck cleaned! " + currentDuck.getStatusMessage());
+        printDuckStatus();
+    }
+
+    public void playWithDuck() {
+        if (!checkDuck()) return;
+
+        statsManager.playWithDuck(currentDuck);
+        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
+        currentUser.addCoins(5);
+
+        db.updateDuck(currentDuck);
+        db.updateUser(currentUser);
+
+        System.out.println("Played with duck! " + currentDuck.getStatusMessage());
+        printDuckStatus();
+    }
+
+    public void putDuckToSleep() {
+        if (!checkDuck()) return;
+
+        statsManager.sleepDuck(currentDuck);
+        currentDuck.setLastUpdatedTime(System.currentTimeMillis());
+        db.updateDuck(currentDuck);
+
+        System.out.println("Duck is sleeping... Zzz");
+        printDuckStatus();
+    }
+
+    public void printDuckStatus() {
+        if (!checkDuck()) return;
+
         System.out.println("\n=== DUCK STATUS ===");
-        System.out.println("Hunger:     " + String.format("%.1f", currentDuck.getHunger()) + "/100");
-        System.out.println("Energy:     " + String.format("%.1f", currentDuck.getEnergy()) + "/100");
+        System.out.println("Hunger:      " + String.format("%.1f", currentDuck.getHunger()) + "/100");
+        System.out.println("Energy:      " + String.format("%.1f", currentDuck.getEnergy()) + "/100");
         System.out.println("Cleanliness: " + String.format("%.1f", currentDuck.getCleanliness()) + "/100");
         System.out.println("Happiness:   " + String.format("%.1f", currentDuck.getHappiness()) + "/100");
         System.out.println("State:       " + currentDuck.getState());
         System.out.println("Mood:        " + currentDuck.getStatusMessage());
-        System.out.println("Time Status: " + statsManager.getNightTimeStatus()); // NEW
+        System.out.println("Time Status: " + statsManager.getTimeStatus(currentDuck));
         System.out.println("===================\n");
     }
 
-    // Shop methods unchanged
+    // ====================
+    // SHOP METHODS
+    // ====================
+    private void loadShopItems() {
+        shopHats = db.getAllHats();
+        shopFoods = db.getAllFoods();
+        System.out.println("Loaded " + shopHats.size() + " hats and " + shopFoods.size() + " foods.");
+    }
+
     public boolean buyHat(int hatId) {
-        // ... unchanged ...
-        if (currentUser == null) return false;
+        if (!checkUser()) return false;
 
         Hat hat = getHatById(hatId);
         if (hat == null) {
             System.err.println("Hat not found: " + hatId);
+            return false;
+        }
+
+        if (currentUser.getLevel() < hat.getLvlRequired()) {
+            System.err.println("Level too low to buy " + hat.getName());
+            return false;
+        }
+
+        if (currentUser.ownsHat(hatId)) {
+            System.err.println("Already own " + hat.getName());
             return false;
         }
 
@@ -220,121 +249,222 @@ public class GameManager {
             System.out.println("Bought hat: " + hat.getName());
             return true;
         } else {
-            System.err.println("Not enough coins to buy: " + hat.getName());
+            System.err.println("Not enough coins for " + hat.getName());
             return false;
         }
     }
 
     public boolean buyFood(int foodId, int quantity) {
-        // ... unchanged ...
-        if (currentUser == null) return false;
+        if (!checkUser()) return false;
+        if (quantity <= 0) return false;
 
         Food food = getFoodById(foodId);
-        if (food == null) {
-            System.err.println("Food not found: " + foodId);
+        if (food == null) return false;
+
+        int pricePerUnit = (int) food.getPrice();
+        int totalCost = pricePerUnit * quantity;
+
+        if (!currentUser.deductCoins(totalCost)) {
+            System.err.println("Not enough coins!");
             return false;
         }
 
-        int totalCost = food.getPrice() * quantity;
-        if (currentUser.deductCoins(totalCost)) {
-            db.addFoodToInventory(currentUser.getId(), foodId, quantity);
-            db.updateUser(currentUser);
-            System.out.println("Bought " + quantity + "x " + food.getName());
-            return true;
-        } else {
-            System.err.println("Not enough coins to buy: " + food.getName());
+        String inventory = currentUser.getFoodInventory();
+        Map<Integer, Integer> foodMap = parseInventory(inventory);
+        foodMap.put(foodId, foodMap.getOrDefault(foodId, 0) + quantity);
+        currentUser.setFoodInventory(buildInventoryString(foodMap));
+        db.updateUser(currentUser);
+
+        System.out.println("Bought " + quantity + "x " + food.getName());
+        return true;
+    }
+
+    private Map<Integer, Integer> parseInventory(String inventory) {
+        Map<Integer, Integer> map = new HashMap<>();
+        if (inventory == null || inventory.isEmpty() || inventory.equals("{}")) return map;
+
+        inventory = inventory.replace("{", "").replace("}", "");
+        String[] items = inventory.split(",");
+        for (String item : items) {
+            String[] parts = item.split(":");
+            if (parts.length == 2) {
+                try {
+                    map.put(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return map;
+    }
+
+    private String buildInventoryString(Map<Integer, Integer> map) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+            sb.append(entry.getKey()).append(":").append(entry.getValue()).append(",");
+        }
+        if (sb.length() > 0) sb.setLength(sb.length() - 1);
+        return sb.toString();
+    }
+
+    // ====================
+    // HELPERS
+    // ====================
+    private boolean checkDuck() {
+        if (currentDuck == null) {
+            System.out.println("No duck found! Login first.");
             return false;
         }
+        return true;
     }
 
-    // Minigame methods unchanged
-    public void saveDuckDashScore(int score) {
-        // ... unchanged ...
-        if (currentUser == null) return;
-
-        int coinsEarned = score / 10;
-        int expEarned = score / 5;
-
-        db.saveScore(currentUser.getId(), "duck_dash", score, coinsEarned, expEarned);
-
-        currentUser.addCoins(coinsEarned);
-        currentUser.addExperience(expEarned);
-        db.updateUser(currentUser);
-
-        int highScore = db.getUserHighScore(currentUser.getId(), "duck_dash");
-        if (score > highScore) {
-            System.out.println("NEW HIGH SCORE! " + score + " points!");
+    private boolean checkUser() {
+        if (currentUser == null) {
+            System.out.println("Please login first!");
+            return false;
         }
-
-        int rank = db.getUserRank(currentUser.getId(), "duck_dash");
-        System.out.println("Duck Dash score: " + score + " points (Rank: #" + rank + ")");
-    }
-
-    public void saveCardMatchScore(int score) {
-        // ... unchanged ...
-        if (currentUser == null) return;
-
-        int coinsEarned = score * 2;
-        int expEarned = score;
-
-        db.saveScore(currentUser.getId(), "card_match", score, coinsEarned, expEarned);
-
-        currentUser.addCoins(coinsEarned);
-        currentUser.addExperience(expEarned);
-        db.updateUser(currentUser);
-
-        int highScore = db.getUserHighScore(currentUser.getId(), "card_match");
-        if (score > highScore) {
-            System.out.println("🎉 NEW HIGH SCORE! " + score + " matches!");
-        }
-
-        int rank = db.getUserRank(currentUser.getId(), "card_match");
-        System.out.println("Card Match score: " + score + " matches (Rank: #" + rank + ")");
-    }
-
-    // Utility methods unchanged
-    private void loadShopItems() {
-        // ... unchanged ...
-        shopHats = db.getAllHats();
-        shopFoods = db.getAllFoods();
-        System.out.println("Loaded " + shopHats.size() + " hats and " +
-                shopFoods.size() + " foods from shop");
+        return true;
     }
 
     private Hat getHatById(int hatId) {
-        // ... unchanged ...
-        for (Hat hat : shopHats) {
-            if (hat.getId() == hatId) {
-                return hat;
-            }
-        }
+        for (Hat hat : shopHats) if (hat.getId() == hatId) return hat;
         return null;
     }
 
     private Food getFoodById(int foodId) {
-        // ... unchanged ...
-        for (Food food : shopFoods) {
-            if (food.getId() == foodId) {
-                return food;
-            }
-        }
+        for (Food food : shopFoods) if (food.getId() == foodId) return food;
         return null;
     }
 
-    // Getters unchanged
+    // ====================
+    // GETTERS
+    // ====================
     public User getUser() { return currentUser; }
     public Duck getDuck() { return currentDuck; }
     public List<Hat> getShopHats() { return shopHats; }
     public List<Food> getShopFoods() { return shopFoods; }
-    public List<Score> getHighScores(String gameType) {
-        return db.getHighScores(gameType, 10);
+    public String getTimeStatus() {
+        return currentDuck != null ? statsManager.getTimeStatus(currentDuck) : "No duck loaded";
     }
 
-    // Cleanup unchanged
+    // ====================
+    // CLEANUP
+    // ====================
     public void shutdown() {
         if (statTimer != null) {
             statTimer.cancel();
+            statTimer = null;
         }
-        db.close();
+        if (db != null) {
+            db.close();
+        }
     }
 }
+
+//package backend.services;
+//
+//import database.Database;
+//import java.util.*;
+//
+//public class GameManager {
+//    private Database db;
+//    private StatsManager statsManager;
+//    private Map<String, Integer> userIds = new HashMap<>();
+//
+//    public GameManager() {
+//        try {
+//            db = new Database();
+//            statsManager = new StatsManager();
+//        } catch (Exception e) {
+//            System.err.println("Failed to initialize GameManager: " + e.getMessage());
+//        }
+//    }
+//
+//    // --- AUTHENTICATION ---
+//    public boolean register(String username, String password) {
+//        if (db.createUser(username, password)) {
+//            int userId = db.getUserId(username);
+//            userIds.put(username, userId);
+//            db.createDuck(userId);
+//            db.initFood(userId);
+//            System.out.println("Registered user: " + username);
+//            return true;
+//        }
+//        return false;
+//    }
+//
+//    public boolean login(String username, String password) {
+//        boolean success = db.authenticate(username, password);
+//        if (success) {
+//            int userId = db.getUserId(username);
+//            userIds.put(username, userId);
+//
+//            // Initialize stats if first login
+//            Map<String, Double> stats = db.getDuckStats(username);
+//            if (stats.isEmpty()) {
+//                db.createDuck(userId);
+//                db.initFood(userId);
+//            }
+//
+//            // Apply stat decay
+//            applyStatDecay(username);
+//        }
+//        return success;
+//    }
+//
+//    private void applyStatDecay(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        if (!stats.isEmpty()) {
+//            stats = statsManager.applyStatDecay(stats);
+//            db.updateDuckStats(username, stats);
+//        }
+//    }
+//
+//    // --- DUCK ACTIONS ---
+//    public void feedDuck(String username, int foodType) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        int[] foodQty = db.getFoodQuantities(username);
+//        if (foodQty[foodType] > 0) {
+//            stats = statsManager.feedDuck(stats, foodType);
+//            foodQty[foodType]--;
+//            db.updateFoodQuantity(username, foodType, foodQty[foodType]);
+//            db.updateDuckStats(username, stats);
+//        }
+//    }
+//
+//    public void cleanDuck(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        stats = statsManager.cleanDuck(stats);
+//        db.updateDuckStats(username, stats);
+//    }
+//
+//    public void playWithDuck(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        stats = statsManager.playWithDuck(stats);
+//        db.updateDuckStats(username, stats);
+//    }
+//
+//    public void sleepDuck(String username) {
+//        Map<String, Double> stats = db.getDuckStats(username);
+//        stats = statsManager.sleepDuck(stats);
+//        db.updateDuckStats(username, stats);
+//    }
+//
+//    public Map<String, Double> getDuckStats(String username) {
+//        return db.getDuckStats(username);
+//    }
+//
+//    public int getCredits(String username) {
+//        return db.getUserCredits(username);
+//    }
+//
+//    public int getLevel(String username) {
+//        return db.getUserLevel(username);
+//    }
+//
+//    public int[] getFoodQuantities(String username) {
+//        return db.getFoodQuantities(username);
+//    }
+//
+//    public void shutdown() {
+//        db.close();
+//    }
+//}

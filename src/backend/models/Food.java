@@ -4,21 +4,23 @@ public class Food {
     private int id;
     private String name;
     private String description;
-    private int price;
-    private int hungerRestore;
-    private int energyRestore;
-    private int happinessBonus;
+    private double price;
+    private double hungerRestore;
+    private double energyRestore;
+    private double cleanlinessReduction;
+    private double happinessBonus;
 
     public Food() {}
 
-    public Food(int id, String name, String description, int price,
-                int hungerRestore, int energyRestore, int happinessBonus) {
+    public Food(int id, String name, String description, double price,
+                double hungerRestore, double energyRestore, double cleanlinessReduction, double happinessBonus) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.price = price;
         this.hungerRestore = hungerRestore;
         this.energyRestore = energyRestore;
+        this.cleanlinessReduction = cleanlinessReduction;
         this.happinessBonus = happinessBonus;
     }
 
@@ -32,20 +34,26 @@ public class Food {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public int getPrice() { return price; }
-    public void setPrice(int price) { this.price = price; }
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
 
-    public int getHungerRestore() { return hungerRestore; }
-    public void setHungerRestore(int hungerRestore) { this.hungerRestore = hungerRestore; }
+    public double getHungerRestore() { return hungerRestore; }
+    public void setHungerRestore(double hungerRestore) { this.hungerRestore = hungerRestore; }
 
-    public int getEnergyRestore() { return energyRestore; }
-    public void setEnergyRestore(int energyRestore) { this.energyRestore = energyRestore; }
+    public double getEnergyRestore() { return energyRestore; }
+    public void setEnergyRestore(double energyRestore) { this.energyRestore = energyRestore; }
 
-    public int getHappinessBonus() { return happinessBonus; }
-    public void setHappinessBonus(int happinessBonus) { this.happinessBonus = happinessBonus; }
+    public double getCleanlinessReduction() { return cleanlinessReduction; }
+    public void setCleanlinessReduction(double cleanlinessReduction) { this.cleanlinessReduction = cleanlinessReduction; }
+
+    public double getHappinessBonus() { return happinessBonus; }
+    public void setHappinessBonus(double happinessBonus) { this.happinessBonus = happinessBonus; }
 
     @Override
     public String toString() {
-        return name + " - " + price + " coins (Hunger +" + hungerRestore + ")";
+        return name + " - " + price + " coins (Hunger +" + hungerRestore +
+                ", Energy +" + energyRestore +
+                ", Cleanliness -" + cleanlinessReduction +
+                ", Happiness +" + happinessBonus + ")";
     }
 }

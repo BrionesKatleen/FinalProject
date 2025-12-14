@@ -163,7 +163,7 @@ public class Duck {
 
     // Status checks (preserved from original)
     public boolean isFine() {
-        return hunger > 0 && energy > 0 && happiness > 0; // TRACKS IF THE DUCK IS IN THE RIGHT CONDITION
+        return hunger > 10 && energy > 10 && happiness > 10 && cleanliness > 10; // TRACKS IF THE DUCK IS IN THE RIGHT CONDITION
     }
 
     public boolean needsAttention() {
@@ -171,14 +171,14 @@ public class Duck {
     }
 
     public String getStatusMessage() {
-        if (hunger < 15) return "I'm starving!";
-        if (energy < 15) return "I'm exhausted!";
-        if (cleanliness < 20) return "I'm so dirty!";
-        if (happiness < 25) return "I'm feeling sad...";
-        if (hunger < 50) return "I could eat something.";
-        if (energy < 50) return "Feeling a bit tired.";
-        if (cleanliness < 60) return "I could use a bath.";
-        if (happiness < 60) return "Let's play!";
+        if (hunger < 10) return "I'm starving!";
+        if (energy < 10) return "I'm exhausted!";
+        if (cleanliness < 10) return "I'm so dirty!";
+        if (happiness < 15) return "I'm feeling sad...";
+        if (hunger < 30) return "I could eat something.";
+        if (energy < 20) return "Feeling a bit tired.";
+        if (cleanliness < 30) return "I could use a bath.";
+        if (happiness < 70) return "Let's play!";
         return "I'm feeling great!";
     }
 
