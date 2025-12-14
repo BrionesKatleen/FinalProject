@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/QuackMate.iml" filepath="$PROJECT_DIR$/QuackMate.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/QuackMate.iml" filepath="$PROJECT_DIR$/.idea/QuackMate.iml" />
     </modules>
   </component>
 </project>
